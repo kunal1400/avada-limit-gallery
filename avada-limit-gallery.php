@@ -268,7 +268,7 @@ class Multi_Image_Uploader
                     <td class="column-columnname"><input style="width:100%" type="text" name="number_of_images_to_show" id="number_of_images_to_show" value="'.$numberOfImagesToShow.'" required/></td>
                 </tr>
                 <tr>
-                    <th><label for="form_shortcode">Form shortcode: (Leave empty to use plugin default functionality)</label></th>
+                    <th><label for="form_shortcode">Other shortcode: <small>(Leave empty to use plugin default functionality)</small></label></th>
                     <td class="column-columnname"><input style="width:100%" type="text" name="form_shortcode" id="form_shortcode" value="'.$formShortcode.'" required/></td>
                 </tr>               
             </table>
