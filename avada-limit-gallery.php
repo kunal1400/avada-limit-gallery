@@ -1,7 +1,7 @@
 <?php
 /*
 Plugin Name: Avada Limit Gallery
-Description: Just another contact form plugin. Simple but flexible.
+Description: Simple plugin to extend the functionality of avada gallery
 Author: Kunal Malviya
 Author URI: https://www.facebook.com/lucky.kunalmalviya
 Text Domain: contact-form-7
@@ -269,7 +269,7 @@ class Multi_Image_Uploader
                 </tr>
                 <tr>
                     <th><label for="form_shortcode">Other shortcode: <small>(Leave empty to use plugin default functionality)</small></label></th>
-                    <td class="column-columnname"><input style="width:100%" type="text" name="form_shortcode" id="form_shortcode" value="'.$formShortcode.'" required/></td>
+                    <td class="column-columnname"><input style="width:100%" type="text" name="form_shortcode" id="form_shortcode" value="'.$formShortcode.'"/></td>
                 </tr>               
             </table>
         </div><br/>';
