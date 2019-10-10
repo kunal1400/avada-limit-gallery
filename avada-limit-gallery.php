@@ -4,7 +4,7 @@ Plugin Name: Avada Limit Gallery
 Description: Simple plugin to extend the functionality of avada gallery
 Author: Kunal Malviya
 Author URI: https://www.facebook.com/lucky.kunalmalviya
-Text Domain: contact-form-7
+Text Domain: avada-limit-gallery
 Domain Path: /languages/
 Version: 5.1.1
 */
@@ -17,11 +17,40 @@ function init_wp_enqueue_scripts() {
 	wp_enqueue_script('magnificPopup');
 }
 
-add_action("init", "avada_limit_gallery_init_functions");
+/**
+* On Ninja Form Submission create/login user
+**/
+add_action( 'ninja_forms_after_submission', 'avada_limit_gallery_ninja_forms_after_submission' );
+function avada_limit_gallery_ninja_forms_after_submission( $form_data ) {
+    global $wp;
+    $currentUrl = home_url( $wp->request );
+    $email = $form_data['fields_by_key']['email']['value'];
+    if($email) {        
+        if ( email_exists($email) == false ) {
+            echo "$email not present in db";
+            $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
+            wp_create_user( $email, $random_password, $email );
+        }        
 
+        $user = get_user_by( 'email',  $email );        
+        // $user = get_user_by( 'id', $user->ID );
+        wp_set_current_user($user->ID);
+        wp_set_auth_cookie($user->ID);
+        do_action( 'wp_login', $user->data->user_login );        
+    }
+    else {
+        echo "Unable to get email from ninja form";
+    }
+}
+
+/**
+* On page load call this function
+**/
+add_action("init", "avada_limit_gallery_init_functions");
 function avada_limit_gallery_init_functions() {
     if( !empty($_POST['avada_limit_gallery_user_registration_email']) ) {
         $email = $_POST['avada_limit_gallery_user_registration_email'];
+        $redirectUrl = $_POST['avada_limit_gallery_redirect_url'];
 
         // If email is not present then create user
         if ( email_exists($email) == false ) {
@@ -29,17 +58,15 @@ function avada_limit_gallery_init_functions() {
             wp_create_user( $email, $random_password, $email );
         }        
 
-        $user = get_user_by( 'email',  $email );            
+        $user = get_user_by( 'email',  $email );
         // $user = get_user_by( 'id', $user->ID );
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID);
         do_action( 'wp_login', $user->data->user_login );
-        $redirectUrl = $_POST['avada_limit_gallery_redirect_url'];            
         wp_redirect($redirectUrl);
-        exit;     
+        exit;        
     }    
 }
-
 
 /**
 * Adding shortcode for this plugin
@@ -78,13 +105,20 @@ function avada_limit_gallery_callback( $atts ) {
                 }
             }            
             $returnHtml .= '[/fusion_gallery]';
+            
+            $returnHtml .= '[fusion_button link="" text_transform="" title="" target="_self" link_attributes="" alignment="" modal="user_not_loged_in" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="" id="" color="default" button_gradient_top_color="" button_gradient_bottom_color="" button_gradient_top_color_hover="" button_gradient_bottom_color_hover="" accent_color="" accent_hover_color="" type="" bevel_color="" border_width="" size="" stretch="default" shape="" icon="" icon_position="left" icon_divider="no" animation_type="" animation_direction="left" animation_speed="0.3" animation_offset=""]Please enter your email to see all images[/fusion_button]';
 
             // If form shortcode is set then do that hook otherwise do default functionality
             if( $formShortcode == "" ) {
-                $returnHtml .= '[fusion_button link="" text_transform="" title="" target="_self" link_attributes="" alignment="" modal="user_not_loged_in" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="" id="" color="default" button_gradient_top_color="" button_gradient_bottom_color="" button_gradient_top_color_hover="" button_gradient_bottom_color_hover="" accent_color="" accent_hover_color="" type="" bevel_color="" border_width="" size="" stretch="default" shape="" icon="" icon_position="left" icon_divider="no" animation_type="" animation_direction="left" animation_speed="0.3" animation_offset=""]Please enter your email to see all images[/fusion_button][fusion_modal name="user_not_loged_in" title="Enter your email to see all images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]<form action="" method="post"><div><label>Email:</label> <input name="avada_limit_gallery_user_registration_email" type="text" /> <input type="hidden" name="avada_limit_gallery_redirect_url" value="'.$currentUrl.'"></div><div><div class="fusion-button-wrapper"><div class="fusion-separator fusion-full-width-sep sep-none" style="margin-left: auto; margin-right: auto; margin-top: 20px;"> </div><p><button class="fusion-button button-flat fusion-button-default-shape fusion-button-default-size button-default button-1 fusion-button-default-span fusion-button-default-type" type="submit"><span class="fusion-button-text">Submit</span></button></p></div></div></form>[/fusion_modal]';
+                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Enter your email to see all images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]<form action="" method="post"><div><label>Email:</label> <input name="avada_limit_gallery_user_registration_email" type="text" /> <input type="hidden" name="avada_limit_gallery_redirect_url" value="'.$currentUrl.'"></div><div><div class="fusion-button-wrapper"><div class="fusion-separator fusion-full-width-sep sep-none" style="margin-left: auto; margin-right: auto; margin-top: 20px;"> </div><p><button class="fusion-button button-flat fusion-button-default-shape fusion-button-default-size button-default button-1 fusion-button-default-span fusion-button-default-type" type="submit"><span class="fusion-button-text">Submit</span></button></p></div></div></form>[/fusion_modal]';
             }
             else {
-                $returnHtml .= $formShortcode;
+                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Enter your email to see all images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]'.$formShortcode.'[/fusion_modal]';
+                $returnHtml .= "<script>
+                            jQuery(document).ajaxStop(function(){
+                                window.location.reload();
+                            });
+                            </script>";
             }
         }
     }
@@ -365,6 +399,14 @@ if ( ! function_exists( 'get_attachment_id' ) ) {
             }
         }
 
+        return false;
+    }
+}
+
+
+add_filter( 'show_admin_bar' , 'handle_admin_bar');
+function handle_admin_bar($content) {
+    if (!current_user_can('manage_options')) {
         return false;
     }
 }
