@@ -106,7 +106,7 @@ function avada_limit_gallery_callback( $atts ) {
             }            
             $returnHtml .= '[/fusion_gallery]';
             
-            $returnHtml .= '[fusion_button link="" text_transform="" title="" target="_self" link_attributes="" alignment="" modal="user_not_loged_in" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="" id="" color="default" button_gradient_top_color="" button_gradient_bottom_color="" button_gradient_top_color_hover="" button_gradient_bottom_color_hover="" accent_color="" accent_hover_color="" type="" bevel_color="" border_width="" size="" stretch="default" shape="" icon="" icon_position="left" icon_divider="no" animation_type="" animation_direction="left" animation_speed="0.3" animation_offset=""]Please enter your email to see all images[/fusion_button]';
+            $returnHtml .= '[fusion_button link="" text_transform="" title="" target="_self" link_attributes="" alignment="" modal="user_not_loged_in" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="see-more-button" id="" color="default" button_gradient_top_color="" button_gradient_bottom_color="" button_gradient_top_color_hover="" button_gradient_bottom_color_hover="" accent_color="" accent_hover_color="" type="" bevel_color="" border_width="" size="" stretch="default" shape="" icon="" icon_position="left" icon_divider="no" animation_type="" animation_direction="left" animation_speed="0.3" animation_offset=""]See All Images[/fusion_button]';
 
             // If form shortcode is set then do that hook otherwise do default functionality
             if( $formShortcode == "" ) {
