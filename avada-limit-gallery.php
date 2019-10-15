@@ -22,24 +22,23 @@ function init_wp_enqueue_scripts() {
 **/
 add_action( 'ninja_forms_after_submission', 'avada_limit_gallery_ninja_forms_after_submission' );
 function avada_limit_gallery_ninja_forms_after_submission( $form_data ) {
-    global $wp;
-    $currentUrl = home_url( $wp->request );
-    $email = $form_data['fields_by_key']['email']['value'];
-    if($email) {        
-        if ( email_exists($email) == false ) {
-            echo "$email not present in db";
-            $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
-            wp_create_user( $email, $random_password, $email );
-        }        
+    if( !is_user_logged_in() ) {
+        global $wp;
+        $currentUrl = home_url( $wp->request );
+        $email = $form_data['fields_by_key']['email']['value'];
+        if($email) {        
+            if ( email_exists($email) == false ) {
+                echo "$email not present in db";
+                $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
+                wp_create_user( $email, $random_password, $email );
+            }        
 
-        $user = get_user_by( 'email',  $email );        
-        // $user = get_user_by( 'id', $user->ID );
-        wp_set_current_user($user->ID);
-        wp_set_auth_cookie($user->ID);
-        do_action( 'wp_login', $user->data->user_login );        
-    }
-    else {
-        echo "Unable to get email from ninja form";
+            $user = get_user_by( 'email',  $email );        
+            // $user = get_user_by( 'id', $user->ID );
+            wp_set_current_user($user->ID);
+            wp_set_auth_cookie($user->ID);
+            do_action( 'wp_login', $user->data->user_login );        
+        }
     }
 }
 
@@ -404,9 +403,32 @@ if ( ! function_exists( 'get_attachment_id' ) ) {
 }
 
 
-add_filter( 'show_admin_bar' , 'handle_admin_bar');
+/*add_filter( 'show_admin_bar' , 'handle_admin_bar');
 function handle_admin_bar($content) {
     if (!current_user_can('manage_options')) {
         return false;
     }
+}*/
+
+/**
+ * Disable admin bar on the frontend of your website
+ * for subscribers.
+ */
+function themeblvd_disable_admin_bar() { 
+    if ( ! current_user_can('edit_posts') ) {
+        add_filter('show_admin_bar', '__return_false'); 
+    }
 }
+add_action( 'after_setup_theme', 'themeblvd_disable_admin_bar' );
+ 
+/**
+ * Redirect back to homepage and not allow access to 
+ * WP admin for Subscribers.
+ */
+function themeblvd_redirect_admin(){
+    if ( ! defined('DOING_AJAX') && ! current_user_can('edit_posts') ) {
+        wp_redirect( site_url() );
+        exit;       
+    }
+}
+add_action( 'admin_init', 'themeblvd_redirect_admin' );
