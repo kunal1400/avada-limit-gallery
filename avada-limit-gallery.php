@@ -6,7 +6,7 @@ Author: Kunal Malviya
 Author URI: https://www.facebook.com/lucky.kunalmalviya
 Text Domain: avada-limit-gallery
 Domain Path: /languages/
-Version: 5.1.1
+Version: 5.1.5
 */
 
 // add_action( 'admin_enqueue_scripts', 'init_admin_script_new' );
@@ -22,7 +22,17 @@ function init_wp_enqueue_scripts() {
 **/
 add_action( 'ninja_forms_after_submission', 'avada_limit_gallery_ninja_forms_after_submission' );
 function avada_limit_gallery_ninja_forms_after_submission( $form_data ) {
-    if( !is_user_logged_in() ) {
+    $isSeeMoreForm = 0;
+    if($form_data['fields_by_key']) {
+        foreach ($form_data['fields_by_key'] as $key => $value) {
+            if($key !== "name" && $key !== "email" && $key !== "submit") {
+                if($value['value'] == 'see_more_form') {
+                    $isSeeMoreForm = 1;
+                }
+            }
+        }
+    }
+    if( !is_user_logged_in() && $isSeeMoreForm ) {        
         global $wp;
         $currentUrl = home_url( $wp->request );
         $email = $form_data['fields_by_key']['email']['value'];
@@ -76,7 +86,7 @@ function avada_limit_gallery_callback( $atts ) {
     $currentUrl = home_url( $wp->request );
     
     global $post;
-    $numberOfImagesToShow = 2;
+    $numberOfImagesToShow = 3;
 	$images = miu_get_images();
     $returnHtml = '';
 
@@ -105,14 +115,14 @@ function avada_limit_gallery_callback( $atts ) {
             }            
             $returnHtml .= '[/fusion_gallery]';
             
-            $returnHtml .= '[fusion_button link="" text_transform="" title="" target="_self" link_attributes="" alignment="" modal="user_not_loged_in" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="see-more-button" id="" color="default" button_gradient_top_color="" button_gradient_bottom_color="" button_gradient_top_color_hover="" button_gradient_bottom_color_hover="" accent_color="" accent_hover_color="" type="" bevel_color="" border_width="" size="" stretch="default" shape="" icon="" icon_position="left" icon_divider="no" animation_type="" animation_direction="left" animation_speed="0.3" animation_offset=""]See All Images[/fusion_button]';
+            $returnHtml .= '[fusion_button link="" text_transform="" title="" target="_self" link_attributes="" alignment="center" modal="user_not_loged_in" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="see-more-button" id="" color="default" button_gradient_top_color="" button_gradient_bottom_color="" button_gradient_top_color_hover="" button_gradient_bottom_color_hover="" accent_color="" accent_hover_color="" type="" bevel_color="" border_width="" size="" stretch="default" shape="" icon="" icon_position="left" icon_divider="no" animation_type="" animation_direction="left" animation_speed="0.3" animation_offset=""]See All Images[/fusion_button]';
 
             // If form shortcode is set then do that hook otherwise do default functionality
             if( $formShortcode == "" ) {
-                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Enter your email to see all images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]<form action="" method="post"><div><label>Email:</label> <input name="avada_limit_gallery_user_registration_email" type="text" /> <input type="hidden" name="avada_limit_gallery_redirect_url" value="'.$currentUrl.'"></div><div><div class="fusion-button-wrapper"><div class="fusion-separator fusion-full-width-sep sep-none" style="margin-left: auto; margin-right: auto; margin-top: 20px;"> </div><p><button class="fusion-button button-flat fusion-button-default-shape fusion-button-default-size button-default button-1 fusion-button-default-span fusion-button-default-type" type="submit"><span class="fusion-button-text">Submit</span></button></p></div></div></form>[/fusion_modal]';
+                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Get Access To All Images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]<form action="" method="post"><div><label>Email:</label> <input name="avada_limit_gallery_user_registration_email" type="text" /> <input type="hidden" name="avada_limit_gallery_redirect_url" value="'.$currentUrl.'"></div><div><div class="fusion-button-wrapper"><div class="fusion-separator fusion-full-width-sep sep-none" style="margin-left: auto; margin-right: auto; margin-top: 20px;"> </div><p><button class="fusion-button button-flat fusion-button-default-shape fusion-button-default-size button-default button-1 fusion-button-default-span fusion-button-default-type" type="submit"><span class="fusion-button-text">Submit</span></button></p></div></div></form>[/fusion_modal]';
             }
             else {
-                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Enter your email to see all images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]'.$formShortcode.'[/fusion_modal]';
+                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Get Access To All Images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]'.$formShortcode.'[/fusion_modal]';
                 $returnHtml .= "<script>
                             jQuery(document).ajaxStop(function(){
                                 window.location.reload();
@@ -278,9 +288,9 @@ class Multi_Image_Uploader
         $numberOfImagesToShow = get_post_meta($post->ID, 'number_of_images_to_show', true);
         $formShortcode = get_post_meta($post->ID, 'form_shortcode', true);
         
-        // If number of images to show is empty then set it to 2
+        // If number of images to show is empty then set it to 3
         if(!$numberOfImagesToShow) {
-            $numberOfImagesToShow = 2;
+            $numberOfImagesToShow = 3;
         }
 
         // If form shortcode is empty then set it to empty string
@@ -306,7 +316,7 @@ class Multi_Image_Uploader
                 </tr>               
             </table>
         </div><br/>';
-        $metabox_content .= '<div id="miu_images"></div><input type="button" onClick="addRow()" value="Add Image" class="button" />';
+        $metabox_content .= '<div id="miu_images"></div><br/><input type="button" onClick="addRow()" value="Add Image" class="button" />';
         echo $metabox_content;
 
         $images = unserialize($value);
