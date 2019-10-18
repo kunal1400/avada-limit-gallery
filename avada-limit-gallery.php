@@ -38,7 +38,7 @@ function avada_limit_gallery_ninja_forms_after_submission( $form_data ) {
         $email = $form_data['fields_by_key']['email']['value'];
         if($email) {        
             if ( email_exists($email) == false ) {
-                echo "$email not present in db";
+                // echo "$email not present in db";
                 $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
                 wp_create_user( $email, $random_password, $email );
             }        
