@@ -6,13 +6,13 @@ Author: Kunal Malviya
 Author URI: https://www.facebook.com/lucky.kunalmalviya
 Text Domain: avada-limit-gallery
 Domain Path: /languages/
-Version: 5.1.5
+Version: 5.1.6
 */
 
 // add_action( 'admin_enqueue_scripts', 'init_admin_script_new' );
 add_action('wp_enqueue_scripts', 'init_wp_enqueue_scripts');
 function init_wp_enqueue_scripts() {
-    wp_enqueue_style( 'magnificPopupCss', plugin_dir_url( __FILE__ ) . 'dist/magnific-popup.css' );	
+    wp_enqueue_style( 'magnificPopupCss', plugin_dir_url( __FILE__ ) . 'dist/magnific-popup.css' );
 	wp_register_script('magnificPopup', plugin_dir_url( __FILE__ ).'dist/jquery.magnific-popup.min.js', array('jquery'), NULL, false );
 	wp_enqueue_script('magnificPopup');
 }
@@ -32,24 +32,60 @@ function avada_limit_gallery_ninja_forms_after_submission( $form_data ) {
             }
         }
     }
-    if( !is_user_logged_in() && $isSeeMoreForm ) {        
+    if( !is_user_logged_in() && $isSeeMoreForm ) {
         global $wp;
         $currentUrl = home_url( $wp->request );
         $email = $form_data['fields_by_key']['email']['value'];
-        if($email) {        
+        if($email) {
             if ( email_exists($email) == false ) {
-                // echo "$email not present in db";
-                $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
-                wp_create_user( $email, $random_password, $email );
-            }        
-
-            $user = get_user_by( 'email',  $email );        
-            // $user = get_user_by( 'id', $user->ID );
-            wp_set_current_user($user->ID);
-            wp_set_auth_cookie($user->ID);
-            do_action( 'wp_login', $user->data->user_login );        
+                // Separate Data
+                $default_newuser = array(
+                    'user_pass' =>  wp_generate_password( $length=12, $include_standard_special_chars=false ),
+                    'user_login' => $email,
+                    'user_email' => $email,
+                    'first_name' => '',
+                    'last_name' => '',
+                    'role' => 'subscriber'
+                );
+                // $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
+                // wp_create_user( $email, $random_password, $email );
+                $user_id = wp_insert_user($default_newuser);
+                if ( $user_id && !is_wp_error( $user_id ) ) {
+                  $code = sha1( $user_id . time() );
+                  $activation_link = add_query_arg( array( 'key' => $code, 'user' => $user_id ), $currentUrl );
+                  // wp_redirect($activation_link);
+                  add_user_meta( $user_id, 'has_to_be_activated', $code, true );
+                  wp_mail( $email, 'ACTIVATION SUBJECT', 'HERE IS YOUR ACTIVATION LINK: ' . $activation_link );
+                  // alert("We have sent you an account verification link on your email and after verification and you can access these images");
+                }
+            }
+            else {
+              $user = get_user_by( 'email',  $email );
+              // $user = get_user_by( 'id', $user->ID );
+              wp_set_current_user($user->ID);
+              wp_set_auth_cookie($user->ID);
+              do_action( 'wp_login', $user->data->user_login );
+            }
         }
     }
+    // echo "jojojoj";
+    // die;
+}
+
+add_action( 'template_redirect', 'wpse8170_activate_user' );
+function wpse8170_activate_user() {
+  $user_id = filter_input( INPUT_GET, 'user', FILTER_VALIDATE_INT, array( 'options' => array( 'min_range' => 1 ) ) );
+  if ( $user_id ) {
+      // get user meta activation hash field
+      $code = get_user_meta( $user_id, 'has_to_be_activated', true );
+      if ( $code == filter_input( INPUT_GET, 'key' ) ) {
+        delete_user_meta( $user_id, 'has_to_be_activated' );
+          $user = get_user_by( 'id', $user_id );
+          wp_set_current_user($user->ID);
+          wp_set_auth_cookie($user->ID);
+          do_action( 'wp_login', $user->data->user_login );
+      }
+  }
 }
 
 /**
@@ -60,21 +96,19 @@ function avada_limit_gallery_init_functions() {
     if( !empty($_POST['avada_limit_gallery_user_registration_email']) ) {
         $email = $_POST['avada_limit_gallery_user_registration_email'];
         $redirectUrl = $_POST['avada_limit_gallery_redirect_url'];
-
         // If email is not present then create user
         if ( email_exists($email) == false ) {
             $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
             wp_create_user( $email, $random_password, $email );
-        }        
-
+        }
         $user = get_user_by( 'email',  $email );
         // $user = get_user_by( 'id', $user->ID );
         wp_set_current_user($user->ID);
         wp_set_auth_cookie($user->ID);
         do_action( 'wp_login', $user->data->user_login );
         wp_redirect($redirectUrl);
-        exit;        
-    }    
+        exit;
+    }
 }
 
 /**
@@ -84,45 +118,52 @@ add_shortcode( 'avada_limit_gallery', 'avada_limit_gallery_callback' );
 function avada_limit_gallery_callback( $atts ) {
     global $wp;
     $currentUrl = home_url( $wp->request );
-    
+
     global $post;
     $numberOfImagesToShow = 3;
-	$images = miu_get_images();
+	  $images = miu_get_images();
     $returnHtml = '';
 
     // Getting the options from
     $numberOfImagesToShow = get_post_meta($post->ID, 'number_of_images_to_show', true);
     $formShortcode = get_post_meta($post->ID, 'form_shortcode', true);
 
-    if( is_user_logged_in() ) {
+    if( is_user_logged_in() && !get_user_meta(get_current_user_id(), 'has_to_be_activated',true)) {
+        // $userId = get_current_user_id();
         if( count($images) > 0 ) {
-            $returnHtml = '[fusion_gallery layout="" picture_size="" columns="4" column_spacing="10" gallery_masonry_grid_ratio="" gallery_masonry_width_double="" hover_type="liftup" lightbox="yes" lightbox_content="" bordersize="" bordercolor="" border_radius="" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="" id=""]';        
+            $returnHtml = '[fusion_gallery layout="" picture_size="" columns="4" column_spacing="10" gallery_masonry_grid_ratio="" gallery_masonry_width_double="" hover_type="liftup" lightbox="yes" lightbox_content="" bordersize="" bordercolor="" border_radius="" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="" id=""]';
             foreach ($images as $i => $image) {
                 $attachmentId = get_attachment_id($image);
                 $returnHtml .= '[fusion_gallery_image link="'.$image.'" image_id="'.$attachmentId.'|medium" linktarget="_self" /]';
             }
             $returnHtml .= '[/fusion_gallery]';
         }
+        // $returnHtml .= "<h1 style='color:#fff'>$userId</h1>";
+        // $returnHtml .= get_user_meta($userId, 'has_to_be_activated',true);
     }
     else {
         if( count($images) > 0 ) {
-            $returnHtml = '[fusion_gallery layout="" picture_size="" columns="4" column_spacing="10" gallery_masonry_grid_ratio="" gallery_masonry_width_double="" hover_type="liftup" lightbox="yes" lightbox_content="" bordersize="" bordercolor="" border_radius="" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="" id=""]';        
+            $returnHtml = '';
+            if( get_user_meta(get_current_user_id(), 'has_to_be_activated',true) ) {
+              $returnHtml .= '<i style="color: red">Please verify your account by clicking on the Email verification link on email</i>';
+            }
+            $returnHtml .= '[fusion_gallery layout="" picture_size="" columns="4" column_spacing="10" gallery_masonry_grid_ratio="" gallery_masonry_width_double="" hover_type="liftup" lightbox="yes" lightbox_content="" bordersize="" bordercolor="" border_radius="" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="" id=""]';
             foreach ($images as $i => $image) {
                 if($i < $numberOfImagesToShow) {
                     $attachmentId = get_attachment_id($image);
                     $returnHtml .= '[fusion_gallery_image link="'.$image.'" image_id="'.$attachmentId.'|medium" linktarget="_self" /]';
                 }
-            }            
+            }
             $returnHtml .= '[/fusion_gallery]';
-            
+
             $returnHtml .= '[fusion_button link="" text_transform="" title="" target="_self" link_attributes="" alignment="center" modal="user_not_loged_in" hide_on_mobile="small-visibility,medium-visibility,large-visibility" class="see-more-button" id="" color="default" button_gradient_top_color="" button_gradient_bottom_color="" button_gradient_top_color_hover="" button_gradient_bottom_color_hover="" accent_color="" accent_hover_color="" type="" bevel_color="" border_width="" size="" stretch="default" shape="" icon="" icon_position="left" icon_divider="no" animation_type="" animation_direction="left" animation_speed="0.3" animation_offset=""]See All Images[/fusion_button]';
 
             // If form shortcode is set then do that hook otherwise do default functionality
             if( $formShortcode == "" ) {
-                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Get Access To All Images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]<form action="" method="post"><div><label>Email:</label> <input name="avada_limit_gallery_user_registration_email" type="text" /> <input type="hidden" name="avada_limit_gallery_redirect_url" value="'.$currentUrl.'"></div><div><div class="fusion-button-wrapper"><div class="fusion-separator fusion-full-width-sep sep-none" style="margin-left: auto; margin-right: auto; margin-top: 20px;"> </div><p><button class="fusion-button button-flat fusion-button-default-shape fusion-button-default-size button-default button-1 fusion-button-default-span fusion-button-default-type" type="submit"><span class="fusion-button-text">Submit</span></button></p></div></div></form>[/fusion_modal]';
+                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Get Access To All Images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]<br><center><a href="https://gogurlz.staging.wpmudev.host/my-login?loginSocial=facebook" data-plugin="nsl" data-action="connect" data-redirect="current" data-provider="facebook" data-popupwidth="475" data-popupheight="175"><img src="https://gogurlz.staging.wpmudev.host/wp-content/uploads/2019/12/go-login-with-facebook.png" alt="" /></a></center><br><form action="" method="post"><div><label>Email: (<i>We will send you an account verification link on your email and after verification and you can access these images</i>)</label> <input name="avada_limit_gallery_user_registration_email" type="text" /> <input type="hidden" name="avada_limit_gallery_redirect_url" value="'.$currentUrl.'"></div><div><div class="fusion-button-wrapper"><div class="fusion-separator fusion-full-width-sep sep-none" style="margin-left: auto; margin-right: auto; margin-top: 20px;"> </div><p><button class="fusion-button button-flat fusion-button-default-shape fusion-button-default-size button-default button-1 fusion-button-default-span fusion-button-default-type" type="submit"><span class="fusion-button-text">Submit</span></button></p></div></div></form>[/fusion_modal]';
             }
             else {
-                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Get Access To All Images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""]'.$formShortcode.'[/fusion_modal]';
+                $returnHtml .= '[fusion_modal name="user_not_loged_in" title="Get Access To All Images" size="large" background="#1b1b1c" border_color="#1b1b1c" show_footer="no" class="" id=""] <br><center><a href="https://gogurlz.staging.wpmudev.host/my-login?loginSocial=facebook" data-plugin="nsl" data-action="connect" data-redirect="current" data-provider="facebook" data-popupwidth="475" data-popupheight="175"><img src="https://gogurlz.staging.wpmudev.host/wp-content/uploads/2019/12/go-login-with-facebook.png" alt="" /></a></center> <br> '.$formShortcode.'[/fusion_modal]';
                 $returnHtml .= "<script>
                             jQuery(document).ajaxStop(function(){
                                 window.location.reload();
@@ -131,11 +172,10 @@ function avada_limit_gallery_callback( $atts ) {
             }
         }
     }
-        
-	ob_start();
+	   ob_start();
     echo do_shortcode($returnHtml);
     // include __DIR__ . '/templates/shortcode.php';
-    return ob_get_clean();		
+    return ob_get_clean();
 }
 
 /**
@@ -270,11 +310,11 @@ class Multi_Image_Uploader
         update_post_meta($post_id, 'miu_images', serialize($miu_images));
 
         if( !empty($_POST['number_of_images_to_show']) ) {
-            update_post_meta($post_id, 'number_of_images_to_show', $_POST['number_of_images_to_show']);            
+            update_post_meta($post_id, 'number_of_images_to_show', $_POST['number_of_images_to_show']);
         }
-        
+
         if( isset($_POST['form_shortcode']) ) {
-            update_post_meta($post_id, 'form_shortcode', $_POST['form_shortcode']);            
+            update_post_meta($post_id, 'form_shortcode', $_POST['form_shortcode']);
         }
 
     }
@@ -287,7 +327,7 @@ class Multi_Image_Uploader
     public function render_meta_box_content($post) {
         $numberOfImagesToShow = get_post_meta($post->ID, 'number_of_images_to_show', true);
         $formShortcode = get_post_meta($post->ID, 'form_shortcode', true);
-        
+
         // If number of images to show is empty then set it to 3
         if(!$numberOfImagesToShow) {
             $numberOfImagesToShow = 3;
@@ -313,7 +353,7 @@ class Multi_Image_Uploader
                 <tr>
                     <th><label for="form_shortcode">Other shortcode: <small>(Leave empty to use plugin default functionality)</small></label></th>
                     <td class="column-columnname"><input style="width:100%" type="text" name="form_shortcode" id="form_shortcode" value="'.$formShortcode.'"/></td>
-                </tr>               
+                </tr>
             </table>
         </div><br/>';
         $metabox_content .= '<div id="miu_images"></div><br/><input type="button" onClick="addRow()" value="Add Image" class="button" />';
@@ -424,21 +464,21 @@ function handle_admin_bar($content) {
  * Disable admin bar on the frontend of your website
  * for subscribers.
  */
-function themeblvd_disable_admin_bar() { 
+function themeblvd_disable_admin_bar() {
     if ( ! current_user_can('edit_posts') ) {
-        add_filter('show_admin_bar', '__return_false'); 
+        add_filter('show_admin_bar', '__return_false');
     }
 }
 add_action( 'after_setup_theme', 'themeblvd_disable_admin_bar' );
- 
+
 /**
- * Redirect back to homepage and not allow access to 
+ * Redirect back to homepage and not allow access to
  * WP admin for Subscribers.
  */
 function themeblvd_redirect_admin(){
     if ( ! defined('DOING_AJAX') && ! current_user_can('edit_posts') ) {
         wp_redirect( site_url() );
-        exit;       
+        exit;
     }
 }
 add_action( 'admin_init', 'themeblvd_redirect_admin' );
